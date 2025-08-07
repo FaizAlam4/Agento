@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # Backend Service (Development)
+  backend-dev:
+    build:
+      context: ./agentic_backend
+      dockerfile: Dockerfile.dev
+      args:
+        - NODE_ENV=development
+    container_name: agentic_backend_dev
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - FRONTEND_URL=http://localhost:5173
+    volumes:
+      - ./agentic_backend:/app
+      - /app/node_modules
+    networks:
+      - agentic_network_dev
+    restart: unless-stopped
+    command: npm run dev
+
+  # Frontend Service (Development)
+  frontend-dev:
+    build:
+      context: ./agentic_frontend
+      dockerfile: Dockerfile.dev
+    container_name: agentic_frontend_dev
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3001
+    volumes:
+      - ./agentic_frontend:/app
+      - /app/node_modules
+    networks:
+      - agentic_network_dev
+    restart: unless-stopped
+    command: npm run dev
+
+networks:
+  agentic_network_dev:
+    driver: bridge
+    name: agentic_network_dev
