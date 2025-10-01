@@ -1,27 +1,70 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: smart_support_postgres_dev
+    environment:
+      POSTGRES_DB: smart_support
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "5435:5432"
+    networks:
+      - agentic_network_dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: smart_support_redis_dev
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - agentic_network_dev
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # Backend Service (Development)
   backend-dev:
     build:
       context: ./agentic_backend
       dockerfile: Dockerfile.dev
-      args:
-        - NODE_ENV=development
     container_name: agentic_backend_dev
     ports:
       - "3001:3001"
     environment:
-      - NODE_ENV=development
+      - PYTHON_ENV=development
       - PORT=3001
       - FRONTEND_URL=http://localhost:5173
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5435/smart_support
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=dev-secret-key-change-in-production
     volumes:
       - ./agentic_backend:/app
-      - /app/node_modules
+      - /app/.env3
     networks:
       - agentic_network_dev
     restart: unless-stopped
-    command: npm run dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: python main.py
 
   # Frontend Service (Development)
   frontend-dev:
@@ -45,3 +88,9 @@ networks:
   agentic_network_dev:
     driver: bridge
     name: agentic_network_dev
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local

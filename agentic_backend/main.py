@@ -1,20 +1,31 @@
-from fastapi import FastAPI, HTTPException, Request
+import os
+import uuid
+from datetime import datetime
+from typing import List
+from fastapi import FastAPI, APIRouter, Depends, status, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
-from typing import List, Optional
-import os
-from datetime import datetime
-import uvicorn
 from dotenv import load_dotenv
+
+# Import database and models
+from database import get_async_db, engine
+from models.auth import Organization
+from models import *  # Import all models
+from auth.dependencies import get_current_user
+from auth.rbac import RBACManager
+from auth.decorators import require_system_admin, require_org_admin
 
 # Load environment variables
 load_dotenv()
 
 app = FastAPI(
-    title="Agentic Backend",
-    description="Backend service for Agentic application",
-    version="1.0.0"
+    title="Smart Customer Support API",
+    description="Multi-modal RAG chatbot for customer support with RBAC",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
 # CORS middleware
@@ -26,68 +37,116 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pydantic models
-class User(BaseModel):
-    id: int
-    name: str
-    email: str
-    created_at: Optional[str] = None
 
-class UserCreate(BaseModel):
-    name: str
-    email: str
+# Import and include organization router
+from routers.organizations import router as org_router
+app.include_router(org_router)
 
-class HealthResponse(BaseModel):
-    status: str
-    message: str
-    timestamp: str
-    environment: str
+app.include_router(org_router)
 
-class TestResponse(BaseModel):
-    message: str
-    version: str
-    timestamp: str
 
-# In-memory storage (replace with database in production)
-users_db = [
-    {"id": 1, "name": "John Doe", "email": "john@example.com"},
-    {"id": 2, "name": "Jane Smith", "email": "jane@example.com"}
-]
 
 # Health check endpoint
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health")
 async def health_check():
-    return HealthResponse(
-        status="OK",
-        message="Backend service is running",
-        timestamp=datetime.now().isoformat(),
-        environment=os.getenv("PYTHON_ENV", "development")
-    )
-
-# API routes
-@app.get("/api/test", response_model=TestResponse)
-async def test_endpoint():
-    return TestResponse(
-        message="Hello from Agentic Backend!",
-        version="1.0.0",
-        timestamp=datetime.now().isoformat()
-    )
-
-# Users endpoints
-@app.get("/api/users", response_model=List[User])
-async def get_users():
-    return users_db
-
-@app.post("/api/users", response_model=User, status_code=201)
-async def create_user(user: UserCreate):
-    new_user = {
-        "id": int(datetime.now().timestamp() * 1000),  # Using timestamp as ID
-        "name": user.name,
-        "email": user.email,
-        "created_at": datetime.now().isoformat()
+    return {
+        "status": "OK",
+        "message": "Backend service is running",
+        "timestamp": datetime.now().isoformat(),
+        "environment": os.getenv("PYTHON_ENV", "development")
     }
-    users_db.append(new_user)
-    return new_user
+
+# Test endpoint
+@app.get("/api/test")
+async def test_endpoint():
+    return {
+        "message": "Hello from Smart Customer Support Backend!",
+        "version": "1.0.0",
+        "timestamp": datetime.now().isoformat(),
+        "features": [
+            "RBAC Authentication",
+            "Multi-modal RAG",
+            "Web Scraping",
+            "Real-time Chat"
+        ]
+    }
+
+# Database check endpoint
+@app.get("/api/db-check")
+async def database_check(db: AsyncSession = Depends(get_async_db)):
+    """Check database connectivity"""
+    try:
+        # Simple query to test connection
+        await db.execute("SELECT 1")
+        return {
+            "status": "OK",
+            "message": "Database connection successful",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+
+# Protected test endpoint
+@app.get("/api/protected-test")
+async def protected_test(current_user: User = Depends(get_current_user)):
+    """Test endpoint that requires authentication"""
+    return {
+        "message": f"Hello {current_user.username}!",
+        "user_id": str(current_user.id),
+        "email": current_user.email,
+        "timestamp": datetime.now().isoformat()
+    }
+
+# RBAC test endpoint
+@app.get("/api/rbac-test")
+async def rbac_test(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Test endpoint to check RBAC functionality"""
+    rbac = RBACManager(db)
+    
+    permissions = await rbac.get_user_permissions(str(current_user.id))
+    roles = await rbac.get_user_roles(str(current_user.id))
+    
+    return {
+        "user": {
+            "id": str(current_user.id),
+            "username": current_user.username,
+            "email": current_user.email
+        },
+        "roles": roles,
+        "permissions": permissions,
+        "timestamp": datetime.now().isoformat()
+    }
+
+# Example: Organization creation endpoint (super-admin only)
+@app.post("/api/organizations/create")
+async def create_organization(
+    name: str,
+    slug: str,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await require_system_admin(_create_organization)(
+        name=name, slug=slug, db=db, current_user=current_user
+    )
+
+async def _create_organization(name, slug, db, current_user):
+    # ...organization creation logic...
+    return {"status": "created", "name": name, "slug": slug}
+
+# Example: Scrap UI endpoint (org-admin only)
+@app.get("/api/scrap-ui")
+async def scrap_ui(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await require_org_admin(_scrap_ui)(db=db, current_user=current_user)
+
+async def _scrap_ui(db, current_user):
+    # ...scrap UI logic...
+    return {"status": "visible", "user": current_user.username}
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -99,7 +158,8 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={
             "error": "Something went wrong!",
-            "message": error_message
+            "message": error_message,
+            "timestamp": datetime.now().isoformat()
         }
     )
 
@@ -110,7 +170,8 @@ async def not_found_handler(request: Request, exc: HTTPException):
         status_code=404,
         content={
             "error": "Not Found",
-            "message": f"Route {request.url.path} not found"
+            "message": f"Route {request.url.path} not found",
+            "timestamp": datetime.now().isoformat()
         }
     )
 
@@ -118,8 +179,9 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 3001))
     env = os.getenv("PYTHON_ENV", "development")
     
-    print(f"🚀 Backend server starting on port {port}")
+    print(f"🚀 Smart Customer Support Backend starting on port {port}")
     print(f"📊 Health check: http://localhost:{port}/health")
+    print(f"📚 API docs: http://localhost:{port}/docs")
     print(f"🌍 Environment: {env}")
     
     uvicorn.run(
