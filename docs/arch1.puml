@@ -1,0 +1,30 @@
+@startuml
+skinparam dpi 150
+skinparam shadowing true
+title Full Hybrid Semantic + Analytic RAG Pipeline
+
+actor "Other Services" as Services
+actor "User" as User
+
+rectangle "Service Bus\n(events/messages)" as SB
+rectangle "Logstash" as LS
+rectangle "Database" as DB
+rectangle "OpenSearch" as OS
+rectangle "Vanna AI\n(structured results)" as Vanna
+rectangle "LLM / Agentic Layer" as LLM
+
+Services --> SB : Push events/messages
+SB --> LS : Read data
+LS --> OS : Index documents + metadata + embeddings
+LS --> DB : Optional DB connector
+
+User --> OS : Semantic Search Query
+User --> Vanna : Analytics Query
+
+OS --> LLM : Top-k documents
+Vanna --> LLM : Structured results
+
+LLM --> User : Final Answer / Action
+LLM --> SB : Optional feedback / logs
+
+@enduml

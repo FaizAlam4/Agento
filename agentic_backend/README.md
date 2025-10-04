@@ -82,9 +82,17 @@ The `scripts.sh` file provides npm-like commands:
 - `GET /health` - Health check endpoint
 - `GET /api/test` - Test endpoint
 
-### Users (Example CRUD)
-- `GET /api/users` - Get all users
-- `POST /api/users` - Create a new user
+
+### Embeddings
+- `POST /api/embeddings/upload` - Upload a document and create embeddings
+
+Example usage:
+```bash
+curl -X POST "http://localhost:3002/api/embeddings/upload" \
+   -F "file=@your_document.pdf"
+```
+
+This endpoint accepts a file upload, processes the document, and returns embedding status/results. Integrate with the frontend uploader for seamless document embedding.
 
 ### Documentation
 - `GET /docs` - Interactive API documentation (Swagger UI)

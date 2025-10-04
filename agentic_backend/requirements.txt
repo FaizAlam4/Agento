@@ -11,3 +11,7 @@ passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
 slowapi==0.1.9
 redis==5.0.1
+opensearch-py
+langchain
+langchain-community
+sentence-transformers

@@ -1,5 +1,6 @@
 
 import React, { useState, useRef } from "react";
+const VITE_API_URL = import.meta.env.VITE_API_URL;
 
 export default function HomeUpload({ theme }) {
   const [file, setFile] = useState(null);
@@ -45,17 +46,34 @@ export default function HomeUpload({ theme }) {
     setUploading(true);
     setMessage("");
     setProgress(0);
-    // Simulate upload progress
-    let prog = 0;
-    const interval = setInterval(() => {
-      prog += 10;
-      setProgress(prog);
-      if (prog >= 100) {
-        clearInterval(interval);
-        setUploading(false);
-        setMessage(`✅ File '${file.name}' ready for embedding!`);
+    try {
+      // Prepare form data
+      const formData = new FormData();
+      formData.append("file", file);
+      // Show progress bar (fake for now)
+      let prog = 0;
+      const interval = setInterval(() => {
+        prog += 10;
+        setProgress(prog);
+      }, 80);
+      // Send to backend
+      const response = await fetch(`${VITE_API_URL}/api/embeddings/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      clearInterval(interval);
+      setProgress(100);
+      setUploading(false);
+      if (response.ok) {
+        const data = await response.json();
+        setMessage(`✅ ${data.message}`);
+      } else {
+        setMessage("❌ Upload failed. Please try again.");
       }
-    }, 80);
+    } catch (err) {
+      setUploading(false);
+      setMessage("❌ Error uploading file. Please try again.");
+    }
   };
 
   return (

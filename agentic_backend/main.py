@@ -1,21 +1,16 @@
 import os
-import uuid
 from datetime import datetime
-from typing import List
-from fastapi import FastAPI, APIRouter, Depends, status, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
 from dotenv import load_dotenv
 
 # Import database and models
-from database import get_async_db, engine
-from models.auth import Organization
-from models import *  # Import all models
+from database import get_async_db
 from auth.dependencies import get_current_user
 from auth.rbac import RBACManager
-from auth.decorators import require_system_admin, require_org_admin
+from auth.decorators import require_system_admin
 
 # Load environment variables
 load_dotenv()
@@ -38,11 +33,10 @@ app.add_middleware(
 )
 
 
-# Import and include organization router
 from routers.organizations import router as org_router
+from routers.upload import router as upload_router
 app.include_router(org_router)
-
-app.include_router(org_router)
+app.include_router(upload_router)
 
 
 
@@ -88,7 +82,7 @@ async def database_check(db: AsyncSession = Depends(get_async_db)):
 
 # Protected test endpoint
 @app.get("/api/protected-test")
-async def protected_test(current_user: User = Depends(get_current_user)):
+async def protected_test(current_user = Depends(get_current_user)):
     """Test endpoint that requires authentication"""
     return {
         "message": f"Hello {current_user.username}!",
@@ -100,7 +94,7 @@ async def protected_test(current_user: User = Depends(get_current_user)):
 # RBAC test endpoint
 @app.get("/api/rbac-test")
 async def rbac_test(
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db)
 ):
     """Test endpoint to check RBAC functionality"""
@@ -126,7 +120,7 @@ async def create_organization(
     name: str,
     slug: str,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user)
+    current_user = Depends(get_current_user)
 ):
     return await require_system_admin(_create_organization)(
         name=name, slug=slug, db=db, current_user=current_user
@@ -136,17 +130,7 @@ async def _create_organization(name, slug, db, current_user):
     # ...organization creation logic...
     return {"status": "created", "name": name, "slug": slug}
 
-# Example: Scrap UI endpoint (org-admin only)
-@app.get("/api/scrap-ui")
-async def scrap_ui(
-    db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user)
-):
-    return await require_org_admin(_scrap_ui)(db=db, current_user=current_user)
-
-async def _scrap_ui(db, current_user):
-    # ...scrap UI logic...
-    return {"status": "visible", "user": current_user.username}
+## Endpoints moved to routers/upload.py
 
 # Global exception handler
 @app.exception_handler(Exception)

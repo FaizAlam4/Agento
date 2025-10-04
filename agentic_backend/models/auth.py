@@ -7,7 +7,7 @@ from database import Base
 
 class Organization(Base):
     __tablename__ = "organizations"
-    __table_args__ = {'schema': 'agentic'}
+    # removed schema, will use public
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
@@ -26,7 +26,7 @@ class Organization(Base):
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = {'schema': 'agentic'}
+    # removed schema, will use public
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
@@ -57,7 +57,7 @@ class User(Base):
 
 class Role(Base):
     __tablename__ = "roles"
-    __table_args__ = {'schema': 'agentic'}
+    # removed schema, will use public
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), nullable=False)
@@ -80,7 +80,7 @@ class Role(Base):
 
 class Permission(Base):
     __tablename__ = "permissions"
-    __table_args__ = {'schema': 'agentic'}
+    # removed schema, will use public
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), unique=True, nullable=False)
@@ -100,7 +100,7 @@ class Permission(Base):
 
 class UserRole(Base):
     __tablename__ = "user_roles"
-    __table_args__ = {'schema': 'agentic'}
+    # removed schema, will use public
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
@@ -111,8 +111,8 @@ class UserRole(Base):
     is_active = Column(Boolean, default=True)
     
     # Unique constraint for user-role combination
-    __table_args__ = (
-        UniqueConstraint('user_id', 'role_id', name='unique_user_role'),
+    # removed schema, will use public
+    __table_args__ = ( UniqueConstraint('user_id', 'role_id', name='unique_user_role'),
     )
     
     # Relationships
@@ -122,7 +122,7 @@ class UserRole(Base):
 
 class RolePermission(Base):
     __tablename__ = "role_permissions"
-    __table_args__ = {'schema': 'agentic'}
+    # removed schema, will use public
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     role_id = Column(UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False)
@@ -142,7 +142,6 @@ class RolePermission(Base):
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
-    __table_args__ = {'schema': 'agentic'}
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))

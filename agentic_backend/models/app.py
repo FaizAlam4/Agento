@@ -1,13 +1,14 @@
-from sqlalchemy import Column, String, Boolean, DateTime, Text, ForeignKey, Integer
+from sqlalchemy import Column, String, Boolean, DateTime, Text, ForeignKey, Integer, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 from database import Base
+from datetime import datetime
+
 
 class KnowledgeBase(Base):
     __tablename__ = "knowledge_bases"
-    __table_args__ = {'schema': 'agentic'}
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
@@ -27,7 +28,6 @@ class KnowledgeBase(Base):
 
 class ScrapedUrl(Base):
     __tablename__ = "scraped_urls"
-    __table_args__ = {'schema': 'agentic'}
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     url = Column(String(2048), nullable=False)
@@ -49,7 +49,6 @@ class ScrapedUrl(Base):
 
 class Document(Base):
     __tablename__ = "documents"
-    __table_args__ = {'schema': 'agentic'}
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     content = Column(Text, nullable=False)
@@ -67,7 +66,6 @@ class Document(Base):
 
 class Conversation(Base):
     __tablename__ = "conversations"
-    __table_args__ = {'schema': 'agentic'}
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String(255))
@@ -83,7 +81,6 @@ class Conversation(Base):
 
 class Message(Base):
     __tablename__ = "messages"
-    __table_args__ = {'schema': 'agentic'}
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     role = Column(String(20), nullable=False)  # user, assistant
@@ -95,3 +92,16 @@ class Message(Base):
     
     # Relationships
     conversation = relationship("Conversation", back_populates="messages")
+    
+# FileUpload model for persisting file metadata and embedding status
+class FileUpload(Base):
+    __tablename__ = "file_uploads"
+    # No __table_args__ so it uses default public schema
+    file_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    file_name = Column(String, nullable=False)
+    upload_time = Column(DateTime, default=datetime.utcnow)
+    embedding_status = Column(String, default="processing")  # ready / processing / failed
+    vector_count = Column(Integer, nullable=True)
+
+    user = relationship("User", back_populates="files")

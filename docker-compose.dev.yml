@@ -38,6 +38,42 @@ services:
       timeout: 10s
       retries: 3
 
+    # OpenSearch Service (Development)
+  opensearch-dev:
+    image: opensearchproject/opensearch:2.13.0
+    container_name: agentic_opensearch_dev
+    environment:
+      - discovery.type=single-node
+      - plugins.security.disabled=true
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=S3cure!OpS2025#
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch_dev_data:/usr/share/opensearch/data
+    networks:
+      - agentic_network_dev
+    restart: unless-stopped
+
+  # OpenSearch Dashboards (Visualization)
+  opensearch-dashboards-dev:
+    image: opensearchproject/opensearch-dashboards:2.13.0
+    container_name: agentic_opensearch_dashboards_dev
+    ports:
+      - "5601:5601"
+    environment:
+      - OPENSEARCH_HOSTS=http://opensearch-dev:9200
+    networks:
+      - agentic_network_dev
+    depends_on:
+      - opensearch-dev
+
   # Backend Service (Development)
   backend-dev:
     build:
@@ -93,4 +129,6 @@ volumes:
   postgres_dev_data:
     driver: local
   redis_dev_data:
+    driver: local
+  opensearch_dev_data:
     driver: local
